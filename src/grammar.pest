@@ -1,0 +1,15 @@
+term = { boolean
+       | if_expression
+       | zero
+       | succ
+       | pred
+       | iszero }
+
+if_expression = { "if" ~ term ~ "then" ~ term ~ "else" ~ term }
+zero = { "0" }
+succ = { "succ" ~ term }
+pred = { "pred" ~ term }
+iszero = { "iszero" ~ term }
+boolean = { "true" | "false" }
+
+WHITESPACE = _{ " " | "\t" | "\r" | "\n" }
