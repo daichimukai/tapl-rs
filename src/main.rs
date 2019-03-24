@@ -1,10 +1,12 @@
 #![feature(box_syntax, box_patterns)]
 #![feature(bind_by_move_pattern_guards)]
+#![feature(type_alias_enum_variants)]
 
 #[macro_use]
 extern crate pest_derive;
 
 use std::env;
+use std::fmt::{self, Display};
 use std::process;
 
 use pest::iterators::Pairs;
@@ -19,6 +21,22 @@ enum Term {
     Succ(Box<Term>),
     Pred(Box<Term>),
     IsZero(Box<Term>),
+}
+
+impl Display for Term {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Self::True => write!(f, "true"),
+            Self::False => write!(f, "false"),
+            Self::If(pred, t_true, t_false) => {
+                write!(f, "if {} then {} else {}", pred, t_true, t_false)
+            }
+            Self::Zero => write!(f, "0"),
+            Self::Succ(term) => write!(f, "succ {}", term),
+            Self::Pred(term) => write!(f, "pred {}", term),
+            Self::IsZero(term) => write!(f, "iszero {}", term),
+        }
+    }
 }
 
 impl Term {
@@ -99,10 +117,10 @@ fn main() {
     let parsed = TermParser::parse(Rule::term, &args[1]).unwrap();
 
     let mut expr = consume(parsed);
-    println!("{:?}", &expr);
+    println!("{}", &expr);
 
     while let Ok(evaled) = expr.eval1() {
-        println!("-> {:?}", &evaled);
+        println!("-> {}", &evaled);
         expr = evaled;
     }
 }
