@@ -32,7 +32,10 @@ impl Display for Term {
                 write!(f, "if {} then {} else {}", pred, t_true, t_false)
             }
             Self::Zero => write!(f, "0"),
-            Self::Succ(term) => write!(f, "succ {}", term),
+            Self::Succ(term) => match term.as_numeric_val() {
+                Some(n) => write!(f, "{}", n + 1),
+                None => write!(f, "succ {}", term),
+            },
             Self::Pred(term) => write!(f, "pred {}", term),
             Self::IsZero(term) => write!(f, "iszero {}", term),
         }
@@ -45,6 +48,14 @@ impl Term {
             Term::Zero => true,
             Term::Succ(t) => t.is_numeric_val(),
             _ => false,
+        }
+    }
+
+    fn as_numeric_val(&self) -> Option<usize> {
+        match self {
+            Term::Zero => Some(0),
+            Term::Succ(t) => t.as_numeric_val().map(|n| n + 1),
+            _ => None,
         }
     }
 
