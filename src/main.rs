@@ -42,6 +42,16 @@ impl Display for Term {
     }
 }
 
+impl From<usize> for Term {
+    fn from(source: usize) -> Self {
+        if source == 0 {
+            return Term::Zero;
+        }
+
+        Self::Succ(box (source - 1).into())
+    }
+}
+
 impl Term {
     fn is_numeric_val(&self) -> bool {
         match self {
@@ -105,7 +115,7 @@ fn consume(mut pairs: Pairs<Rule>) -> Term {
             let f_term = consume(terms.next().unwrap().into_inner());
             Term::If(Box::new(pred), Box::new(t_term), Box::new(f_term))
         }
-        Rule::zero => Term::Zero,
+        Rule::number => pair.as_str().trim_end().parse::<usize>().unwrap().into(),
         Rule::succ => Term::Succ(Box::new(consume(pair.into_inner()))),
         Rule::pred => Term::Pred(Box::new(consume(pair.into_inner()))),
         Rule::iszero => Term::IsZero(Box::new(consume(pair.into_inner()))),

@@ -1,12 +1,12 @@
 term = { boolean
        | if_expression
-       | zero
+       | number
        | succ
        | pred
        | iszero }
 
 if_expression = { "if" ~ term ~ "then" ~ term ~ "else" ~ term }
-zero = { "0" }
+number = { ('0'..'9')+ }
 succ = { "succ" ~ term }
 pred = { "pred" ~ term }
 iszero = { "iszero" ~ term }
