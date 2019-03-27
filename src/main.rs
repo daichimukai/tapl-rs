@@ -5,12 +5,13 @@
 #[macro_use]
 extern crate pest_derive;
 
-use std::env;
-use std::fmt::{self, Display};
-use std::process;
+use std::{
+    env,
+    fmt::{self, Display},
+    process,
+};
 
-use pest::iterators::Pairs;
-use pest::Parser;
+use pest::{iterators::Pairs, Parser};
 
 #[derive(Debug, PartialEq)]
 enum Term {
@@ -49,6 +50,33 @@ impl From<usize> for Term {
         }
 
         Self::Succ(box (source - 1).into())
+    }
+}
+
+impl<'a> From<Pairs<'a, Rule>> for Term {
+    fn from(mut pairs: Pairs<Rule>) -> Self {
+        let pair = pairs.next().unwrap();
+
+        match pair.as_rule() {
+            Rule::term => pair.into_inner().into(),
+            Rule::if_expression => {
+                let mut terms = pair.into_inner();
+                let pred = terms.next().unwrap().into_inner().into();
+                let t_term = terms.next().unwrap().into_inner().into();
+                let f_term = terms.next().unwrap().into_inner().into();
+                Term::If(box pred, box t_term, box f_term)
+            }
+            Rule::number => pair.as_str().trim_end().parse::<usize>().unwrap().into(),
+            Rule::succ => Term::Succ(box pair.into_inner().into()),
+            Rule::pred => Term::Pred(box pair.into_inner().into()),
+            Rule::iszero => Term::IsZero(box pair.into_inner().into()),
+            Rule::boolean => match pair.as_str() {
+                "true" => Term::True,
+                "false" => Term::False,
+                _ => unreachable!(),
+            },
+            _ => unreachable!(),
+        }
     }
 }
 
@@ -103,31 +131,6 @@ impl Term {
 #[grammar = "grammar.pest"]
 struct TermParser;
 
-fn consume(mut pairs: Pairs<Rule>) -> Term {
-    let pair = pairs.next().unwrap();
-
-    match pair.as_rule() {
-        Rule::term => consume(pair.into_inner()),
-        Rule::if_expression => {
-            let mut terms = pair.into_inner();
-            let pred = consume(terms.next().unwrap().into_inner());
-            let t_term = consume(terms.next().unwrap().into_inner());
-            let f_term = consume(terms.next().unwrap().into_inner());
-            Term::If(Box::new(pred), Box::new(t_term), Box::new(f_term))
-        }
-        Rule::number => pair.as_str().trim_end().parse::<usize>().unwrap().into(),
-        Rule::succ => Term::Succ(Box::new(consume(pair.into_inner()))),
-        Rule::pred => Term::Pred(Box::new(consume(pair.into_inner()))),
-        Rule::iszero => Term::IsZero(Box::new(consume(pair.into_inner()))),
-        Rule::boolean => match pair.as_str() {
-            "true" => Term::True,
-            "false" => Term::False,
-            _ => unreachable!(),
-        },
-        _ => unreachable!(),
-    }
-}
-
 fn main() {
     let args: Vec<_> = env::args().collect();
     if args.len() != 2 {
@@ -137,11 +140,11 @@ fn main() {
 
     let parsed = TermParser::parse(Rule::term, &args[1]).unwrap();
 
-    let mut expr = consume(parsed);
+    let mut expr: Term = parsed.into();
     println!("{}", &expr);
 
     while let Ok(evaled) = expr.eval1() {
-        println!("-> {}", &evaled);
+        println!("▸ {}", &evaled);
         expr = evaled;
     }
 }
