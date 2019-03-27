@@ -6,9 +6,8 @@
 extern crate pest_derive;
 
 use std::{
-    env,
     fmt::{self, Display},
-    process,
+    io::{self, Write},
 };
 
 use pest::{iterators::Pairs, Parser};
@@ -111,7 +110,10 @@ impl Term {
             Term::If(box Term::True, box t_term, _) => Ok(t_term),
             Term::If(box Term::False, _, box f_term) => Ok(f_term),
             Term::If(box pred, t_term, f_term) => Ok(Term::If(box pred.eval1()?, t_term, f_term)),
-            Term::Succ(box term) => Ok(Term::Succ(box term.eval1()?)),
+            Term::Succ(box term) => term
+                .eval1()
+                .map(|e| Term::Succ(box e))
+                .map_err(|v| Term::Succ(box v)),
             Term::Pred(box term) => match term {
                 Term::Zero => Ok(Term::Zero),
                 Term::Succ(box nv) if nv.is_numeric_val() => Ok(nv),
@@ -132,19 +134,35 @@ impl Term {
 struct TermParser;
 
 fn main() {
-    let args: Vec<_> = env::args().collect();
-    if args.len() != 2 {
-        eprintln!("Usage: {} <expression>", args[0]);
-        process::exit(1);
-    }
+    println!("Untyped arithmetics interpreter");
+    println!("Press Ctrl-c to abort.");
+    println!("");
 
-    let parsed = TermParser::parse(Rule::term, &args[1]).unwrap();
+    loop {
+        print!("> ");
+        io::stdout().flush().unwrap();
+        let mut input = String::new();
+        match io::stdin().read_line(&mut input) {
+            Ok(_) => match TermParser::parse(Rule::term, &input) {
+                Ok(parsed) => {
+                    let mut expr: Term = parsed.into();
 
-    let mut expr: Term = parsed.into();
-    println!("{}", &expr);
-
-    while let Ok(evaled) = expr.eval1() {
-        println!("▸ {}", &evaled);
-        expr = evaled;
+                    loop {
+                        match expr.eval1() {
+                            Ok(evaled) => {
+                                expr = evaled;
+                            }
+                            Err(evaled) => {
+                                expr = evaled;
+                                break;
+                            }
+                        }
+                    }
+                    println!("▸ {}", expr);
+                }
+                _ => eprintln!("Parse error"),
+            },
+            Err(error) => eprintln!("Error: {}", error),
+        }
     }
 }
