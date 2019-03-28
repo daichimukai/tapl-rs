@@ -109,7 +109,10 @@ impl Term {
         match self {
             Term::If(box Term::True, box t_term, _) => Ok(t_term),
             Term::If(box Term::False, _, box f_term) => Ok(f_term),
-            Term::If(box pred, t_term, f_term) => Ok(Term::If(box pred.eval1()?, t_term, f_term)),
+            Term::If(box pred, t_term, f_term) => match pred.eval1() {
+                Ok(term) => Ok(Term::If(box term, t_term, f_term)),
+                Err(term) => Err(Term::If(box term, t_term, f_term)),
+            },
             Term::Succ(box term) => term
                 .eval1()
                 .map(|e| Term::Succ(box e))
@@ -117,12 +120,18 @@ impl Term {
             Term::Pred(box term) => match term {
                 Term::Zero => Ok(Term::Zero),
                 Term::Succ(box nv) if nv.is_numeric_val() => Ok(nv),
-                _ => Ok(Term::Pred(box term.eval1()?)),
+                term => term
+                    .eval1()
+                    .map(|e| Term::Pred(box e))
+                    .map_err(|v| Term::Pred(box v)),
             },
             Term::IsZero(box term) => match term {
                 Term::Zero => Ok(Term::True),
                 Term::Succ(box nv) if nv.is_numeric_val() => Ok(Term::False),
-                _ => Ok(Term::IsZero(box term.eval1()?)),
+                term => term
+                    .eval1()
+                    .map(|e| Term::IsZero(box e))
+                    .map_err(|v| Term::IsZero(box v)),
             },
             _ => Err(self),
         }
