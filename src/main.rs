@@ -183,7 +183,7 @@ struct TermParser;
 fn main() {
     println!("Untyped arithmetics interpreter");
     println!("Press Ctrl-c to abort.");
-    println!("");
+    println!();
 
     loop {
         print!("> ");
