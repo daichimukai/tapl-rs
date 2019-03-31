@@ -105,6 +105,29 @@ impl Term {
         }
     }
 
+    #[allow(dead_code)]
+    fn get_type(&self) -> Option<TermType> {
+        match self {
+            Term::True | Term::False => Some(TermType::Bool),
+            Term::Zero => Some(TermType::Nat),
+            Term::If(pred, t_term, f_term) => {
+                let t_term_type = t_term.get_type();
+                if pred.get_type() == Some(TermType::Bool)
+                    && t_term_type.is_some()
+                    && t_term_type == f_term.get_type()
+                {
+                    t_term.get_type()
+                } else {
+                    None
+                }
+            }
+            Term::Succ(term) if term.get_type() == Some(TermType::Nat) => Some(TermType::Nat),
+            Term::Pred(term) if term.get_type() == Some(TermType::Nat) => Some(TermType::Nat),
+            Term::IsZero(term) if term.get_type() == Some(TermType::Nat) => Some(TermType::Bool),
+            _ => None,
+        }
+    }
+
     fn eval1(self) -> Result<Term, Term> {
         match self {
             Term::If(box Term::True, box t_term, _) => Ok(t_term),
@@ -134,6 +157,21 @@ impl Term {
                     .map_err(|v| Term::IsZero(box v)),
             },
             _ => Err(self),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq)]
+enum TermType {
+    Bool,
+    Nat,
+}
+
+impl Display for TermType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Self::Bool => write!(f, "Bool"),
+            Self::Nat => write!(f, "Nat"),
         }
     }
 }
