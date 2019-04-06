@@ -5,7 +5,9 @@
 #[macro_use]
 extern crate pest_derive;
 
-use std::fmt::{self, Display};
+use std::{fmt,
+          fmt::Display,
+          convert::{TryFrom, TryInto}};
 
 use pest::iterators::Pairs;
 
@@ -29,9 +31,9 @@ impl Display for Term {
                 write!(f, "if {} then {} else {}", pred, t_true, t_false)
             }
             Self::Zero => write!(f, "0"),
-            Self::Succ(term) => match term.as_numeric_val() {
-                Some(n) => write!(f, "{}", n + 1),
-                None => write!(f, "succ {}", term),
+            Self::Succ(box term) => match term.try_into() as Result<usize, ()> {
+                Ok(n) => write!(f, "{}", n + 1),
+                Err(()) => write!(f, "succ {}", term),
             },
             Self::Pred(term) => write!(f, "pred {}", term),
             Self::IsZero(term) => write!(f, "iszero {}", term),
@@ -82,14 +84,6 @@ impl Term {
             Term::Zero => true,
             Term::Succ(t) => t.is_numeric_val(),
             _ => false,
-        }
-    }
-
-    pub fn as_numeric_val(&self) -> Option<usize> {
-        match self {
-            Term::Zero => Some(0),
-            Term::Succ(t) => t.as_numeric_val().map(|n| n + 1),
-            _ => None,
         }
     }
 
@@ -154,6 +148,18 @@ impl Term {
                     .map_err(|v| Term::IsZero(box v)),
             },
             _ => Err(self),
+        }
+    }
+}
+
+impl TryFrom<&Term> for usize {
+    type Error = ();
+
+    fn try_from(term: &Term) -> Result<Self, Self::Error> {
+        match term {
+            Term::Zero => Ok(0),
+            Term::Succ(box t) => t.try_into().map(|n: usize| n + 1),
+            _ => Err(()),
         }
     }
 }
