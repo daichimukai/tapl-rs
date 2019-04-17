@@ -14,6 +14,15 @@ Inductive is_numeric_val : term -> Prop :=
     is_numeric_val t ->
     is_numeric_val (tmsucc t).
 
+Inductive is_val : term -> Prop :=
+| V_True :
+    is_val tmtrue
+| V_False :
+    is_val tmfalse
+| V_numericalval : forall t,
+    is_numeric_val t ->
+    is_val t.
+
 Inductive subterm : term -> term -> Prop :=
 | S_IfCond : forall t t1 t2,
     subterm t (tmif t t1 t2)
