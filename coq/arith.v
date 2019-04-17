@@ -61,6 +61,17 @@ Inductive typed : term -> type -> Prop :=
     typed t Nat ->
     typed (tmiszero t) Bool.
 
+Lemma subterm_typed : forall t T, typed t T -> forall s, subterm s t -> exists U, typed s U.
+  intros t T t_typed s s_t_subterm.
+  inversion s_t_subterm; subst; inversion t_typed.
+  -exists Bool; assumption.
+  -exists T; assumption.
+  -exists T; assumption.
+  -exists Nat; assumption.
+  -exists Nat; assumption.
+  -exists Nat; assumption.
+Qed.
+
 Lemma typed_bool : forall t, typed t Bool -> is_val t -> t = tmtrue \/ t = tmfalse.
   intros t H_type H_val.
   induction H_val.
