@@ -7,6 +7,8 @@ Inductive term : Type :=
 | tmpred : term -> term
 | tmiszero : term -> term.
 
+Inductive type : Type := Bool | Nat.
+
 Inductive is_numeric_val : term -> Prop :=
 | N_Zero :
     is_numeric_val tmzero
@@ -36,6 +38,48 @@ Inductive subterm : term -> term -> Prop :=
     subterm t (tmpred t)
 | S_IsZero : forall t,
     subterm t (tmiszero t).
+
+Inductive typed : term -> type -> Prop :=
+| T_True :
+    typed tmtrue Bool
+| T_False :
+    typed tmfalse Bool
+| T_Zero :
+    typed tmzero Nat
+| T_If : forall t t1 t2 T,
+    typed t Bool ->
+    typed t1 T ->
+    typed t2 T ->
+    typed (tmif t t1 t2) T
+| T_Succ : forall t,
+    typed t Nat ->
+    typed (tmsucc t) Nat
+| T_Pred : forall t,
+    typed t Nat ->
+    typed (tmpred t) Nat
+| T_IsZero : forall t,
+    typed t Nat ->
+    typed (tmiszero t) Bool.
+
+Lemma typed_bool : forall t, typed t Bool -> is_val t -> t = tmtrue \/ t = tmfalse.
+  intros t H_type H_val.
+  induction H_val.
+  -left; reflexivity. (* t is true*)
+  -right; reflexivity. (* t is false *)
+  -inversion H. (* t is a numeric value (contradiction) *)
+   +rewrite <- H0 in H_type.
+    inversion H_type.
+   +rewrite <- H1 in H_type.
+    inversion H_type.
+Qed.
+
+Lemma typed_numericval : forall t, typed t Nat -> is_val t -> is_numeric_val t.
+  intros t H_type H_val.
+  induction H_val.
+  -inversion H_type. (* t is true (contradiction) *)
+  -inversion H_type. (* t is false (contradiction) *)
+  -assumption. (* t is a numeric value *)
+Qed.
 
 Reserved Notation "x --> y" (at level 80, no associativity).
 
