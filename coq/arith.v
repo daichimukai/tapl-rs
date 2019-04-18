@@ -205,3 +205,54 @@ Lemma one_step_unique : forall t t1 t2, t --> t1 -> t --> t2 -> t1 = t2.
     rewrite (IHone_step H2).
     reflexivity.
 Qed.
+
+Theorem process : forall t T, typed t T -> is_val t \/ (exists t', t --> t').
+  intros t T t_typed.
+  induction t_typed.
+  -left; constructor.
+  -left; constructor.
+  -left; constructor; constructor.
+  -right.
+   case IHt_typed1.
+   +intro t_val.
+    assert (t = tmtrue \/ t = tmfalse) as t_true_or_false.
+    { apply (typed_bool t t_typed1 t_val). }
+    case t_true_or_false.
+    *intro t_true; exists t1; rewrite t_true; constructor.
+    *intro t_false; exists t2; rewrite t_false; constructor.
+   +intro t_process.
+    destruct t_process as [t' t_process].
+    exists (tmif t' t1 t2); constructor; assumption.
+  -case IHt_typed.
+   +intro t_val; left.
+    constructor.
+    constructor.
+    apply (typed_numericval t t_typed t_val).
+   +intro t_process; right.
+    destruct t_process as [t' t_process].
+    exists (tmsucc t'); constructor; assumption.
+  -right.
+   case IHt_typed.
+   +intro t_val.
+    assert (is_numeric_val t) as t_numeric.
+    { apply (typed_numericval t t_typed t_val). }
+    inversion t_numeric.
+    *exists tmzero; constructor.
+    *exists t0; constructor; assumption.
+   +intro t_process.
+    destruct t_process as [t' t_process].
+    exists (tmpred t').
+    apply (E_Pred t t' t_process).
+  -case IHt_typed.
+   +intro t_val; right.
+    assert (is_numeric_val t) as t_numeric.
+    { apply (typed_numericval t t_typed t_val). }
+    inversion t_numeric.
+    *exists tmtrue.
+     constructor.
+    *exists tmfalse.
+     constructor; assumption.
+   +intro t_process; right.
+    destruct t_process as [t' t_process].
+    exists (tmiszero t'); constructor; assumption.
+Qed.
