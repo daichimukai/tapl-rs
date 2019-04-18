@@ -105,6 +105,9 @@ Inductive one_step : term -> term -> Prop :=
 | E_Succ : forall t t',
     (t --> t') ->
     tmsucc t --> tmsucc t'
+| E_Pred : forall t t',
+    (t --> t') ->
+    tmpred t --> tmpred t'
 | E_PredZero :
     tmpred tmzero --> tmzero
 | E_PredSucc : forall nv,
@@ -131,7 +134,7 @@ Lemma numericval_no_eval : forall nv, is_numeric_val nv -> (forall t, not (nv --
    apply IHis_numeric_val.
    assumption.
 Qed.
-   
+
 Lemma one_step_unique : forall t t1 t2, t --> t1 -> t --> t2 -> t1 = t2.
   intros t t1 t2 H1 H2.
   generalize dependent t2.
@@ -156,10 +159,27 @@ Lemma one_step_unique : forall t t1 t2, t --> t1 -> t --> t2 -> t1 = t2.
    inversion H; subst.
    specialize (IHone_step t'0).
    rewrite (IHone_step H2); reflexivity.
+  -intros. (* E_Pred *)
+   inversion H2; subst.
+   +specialize (IHone_step t'0).
+    rewrite (IHone_step H0); reflexivity.
+   +inversion H1.
+   +induction H0.
+    *inversion H1; inversion H0.
+    *inversion H1.
+     inversion H3.
+     apply (numericval_no_eval t H0) in H6.
+     contradiction.
   -intros. (* E_PredZero *)
-   inversion H2; reflexivity.
+   inversion H2.
+   +inversion H0.
+   +reflexivity.
   -intros. (* E_PredSucc *)
-   inversion H2; subst; reflexivity.
+   inversion H2; subst.
+   +inversion H1; subst.
+    apply (numericval_no_eval nv H) in H3.
+    contradiction.
+   +reflexivity.
   -intros. (* E_IsZeroZero *)
    inversion H2; subst.
    +reflexivity.
