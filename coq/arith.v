@@ -124,86 +124,41 @@ Inductive one_step : term -> term -> Prop :=
 
 where "x --> y" := (one_step x y).
 
+Ltac solve_by_inverts n :=
+  match goal with
+  | H : ?T |- _ =>
+    match type of T with Prop =>
+                         solve [
+                             inversion H;
+                             match n with S (S (?n')) => subst; solve_by_inverts (S n') end ]
+    end
+  end.
+Ltac solve_by_invert := solve_by_inverts 1.
+
 Lemma numericval_no_eval : forall nv, is_numeric_val nv -> (forall t, not (nv --> t)).
   intros nv H.
-  induction H; unfold not. intros.
-  -inversion H.
-  -intros t' H'.
-   inversion H'; subst.
-   specialize (IHis_numeric_val t'0).
-   apply IHis_numeric_val.
-   assumption.
+    induction H as [|nv Hnv IH]; unfold not; intros; inversion H.
+  apply (IH t'). assumption.
 Qed.
 
+Ltac find_eqn :=
+  match goal with
+    IH: forall t, ?P t -> ?L = ?R, H: ?P ?X
+                             |- _ => rewrite (IH X H) in *
+end.
+
+Ltac find_succ :=
+  match goal with
+    H1: is_numeric_val ?X, H2: ?X --> ?Y
+    |- _ => apply (numericval_no_eval X H1) in H2; contradiction
+  end.
+
 Lemma one_step_unique : forall t t1 t2, t --> t1 -> t --> t2 -> t1 = t2.
-  intros t t1 t2 H1 H2.
+  intros t t1 t2 H1.
   generalize dependent t2.
-  induction H1.
-  -intros t2 H2. (* E_IfTrue *)
-   inversion H2.
-   +reflexivity.
-   +inversion H4.
-  -intros t2 H2. (* E_IfFalse *)
-   inversion H2; subst.
-   +reflexivity.
-   +inversion H4.
-  -intros t0 H0. (* E_If *)
-   inversion H0; subst.
-   +inversion H1.
-   +inversion H1.
-   +specialize (IHone_step t'0).
-    specialize (IHone_step H5).
-    rewrite IHone_step.
-    reflexivity.
-  -intros t2 H. (* E_Succ *)
-   inversion H; subst.
-   specialize (IHone_step t'0).
-   rewrite (IHone_step H2); reflexivity.
-  -intros. (* E_Pred *)
-   inversion H2; subst.
-   +specialize (IHone_step t'0).
-    rewrite (IHone_step H0); reflexivity.
-   +inversion H1.
-   +induction H0.
-    *inversion H1; inversion H0.
-    *inversion H1.
-     inversion H3.
-     apply (numericval_no_eval t H0) in H6.
-     contradiction.
-  -intros. (* E_PredZero *)
-   inversion H2.
-   +inversion H0.
-   +reflexivity.
-  -intros. (* E_PredSucc *)
-   inversion H2; subst.
-   +inversion H1; subst.
-    apply (numericval_no_eval nv H) in H3.
-    contradiction.
-   +reflexivity.
-  -intros. (* E_IsZeroZero *)
-   inversion H2; subst.
-   +reflexivity.
-   +inversion H0.
-  -intros. (* E_IsZeroSucc *)
-   inversion H2; subst.
-   +reflexivity.
-   +inversion H1; subst.
-    apply numericval_no_eval in H3.
-    contradiction.
-    apply numericval_no_eval in H3.
-    assumption.
-    apply numericval_no_eval in H3.
-    contradiction.
-    apply H.
-  -intros t2 H. (* E_IsZero *)
-   inversion H; subst.
-   +inversion H1.
-   +apply numericval_no_eval in H1.
-    contradiction.
-    apply N_Succ; assumption.
-   +specialize (IHone_step t'0).
-    rewrite (IHone_step H2).
-    reflexivity.
+  induction H1; intros t'' H2; inversion H2; subst;
+    try solve_by_invert; try find_eqn; auto;
+      inversion H1; find_succ.
 Qed.
 
 Theorem process : forall t T, typed t T -> is_val t \/ (exists t', t --> t').
