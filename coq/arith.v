@@ -94,7 +94,7 @@ Qed.
 
 Reserved Notation "x --> y" (at level 80, no associativity).
 
-Inductive one_step : term -> term -> Prop :=
+Inductive step : term -> term -> Prop :=
 | E_IfTrue : forall t t',
     (tmif tmtrue t t') --> t
 | E_IfFalse : forall t t',
@@ -122,7 +122,7 @@ Inductive one_step : term -> term -> Prop :=
     t --> t' ->
     tmiszero t --> tmiszero t'
 
-where "x --> y" := (one_step x y).
+where "x --> y" := (step x y).
 
 Ltac solve_by_inverts n :=
   match goal with
@@ -135,30 +135,48 @@ Ltac solve_by_inverts n :=
   end.
 Ltac solve_by_invert := solve_by_inverts 1.
 
-Lemma numericval_no_eval : forall nv, is_numeric_val nv -> (forall t, not (nv --> t)).
+Definition relation (X : Type) := X -> X -> Prop.
+
+Definition normal_form {X : Type} (R : relation X) (t : X) : Prop :=
+  not (exists t', R t t').
+
+Lemma numericval_no_eval : forall nv, is_numeric_val nv -> normal_form step nv.
+  unfold normal_form.
   intros nv H.
-    induction H as [|nv Hnv IH]; unfold not; intros; inversion H.
-  apply (IH t'). assumption.
+  induction H.
+  - unfold not. intro H. inversion H. inversion H0.
+  - unfold not. intro H'. inversion H'. inversion H0.
+    apply IHis_numeric_val.
+    exists t'.
+    assumption.
+Qed.
+
+Theorem value_is_nf : forall t, is_val t -> normal_form step t.
+  intros t t_val.
+  induction t_val.
+  - unfold normal_form. unfold not. intro H'. inversion H'. inversion H.
+  - unfold normal_form. unfold not. intro H'. inversion H'. inversion H.
+  - apply (numericval_no_eval t H).
 Qed.
 
 Ltac find_eqn :=
   match goal with
-    IH: forall t, ?P t -> ?L = ?R, H: ?P ?X
-                             |- _ => rewrite (IH X H) in *
+  | IH: forall t, ?P t -> ?L = ?R, H: ?P ?X |- _ => rewrite (IH X H) in *
 end.
 
 Ltac find_succ :=
   match goal with
-    H1: is_numeric_val ?X, H2: ?X --> ?Y
-    |- _ => apply (numericval_no_eval X H1) in H2; contradiction
+  | H1: is_numeric_val ?X, H2: ?X --> ?Y
+    |- _ => destruct (value_is_nf _ (V_numericalval _ H1)); exists Y; assumption
+  | H1: is_numeric_val ?X, H2: tmsucc ?X --> ?Y
+    |- _ => inversion H2; find_succ
   end.
 
-Lemma one_step_unique : forall t t1 t2, t --> t1 -> t --> t2 -> t1 = t2.
-  intros t t1 t2 H1.
-  generalize dependent t2.
-  induction H1; intros t'' H2; inversion H2; subst;
-    try solve_by_invert; try find_eqn; auto;
-      inversion H1; find_succ.
+Lemma step_unique : forall t t1 t2, t --> t1 -> t --> t2 -> t1 = t2.
+  intros t t' t'' t_step_t' t_step_t''.
+  generalize dependent t''.
+  induction t_step_t'; intros t'' t_step_t''; inversion t_step_t''; subst;
+    try solve_by_invert; try find_eqn; try find_succ; auto.
 Qed.
 
 Theorem process : forall t T, typed t T -> is_val t \/ (exists t', t --> t').
@@ -210,4 +228,38 @@ Theorem process : forall t T, typed t T -> is_val t \/ (exists t', t --> t').
    +intro t_process; right.
     destruct t_process as [t' t_process].
     exists (tmiszero t'); constructor; assumption.
+Qed.
+
+Hint Constructors typed.
+Lemma numericval_nat : forall t, is_numeric_val t -> typed t Nat.
+  intros t t_nv. induction t_nv; auto.
+Qed.
+
+Ltac find_process :=
+  match goal with
+  | Ht: typed ?X ?T, IH: forall t', ?X --> t' -> typed t' ?T, Hp: ?P ?X --> ?Y
+                                                      |- _ => solve [ inversion Hp; constructor; auto ]
+end.
+
+Theorem preserve : forall t t' T, typed t T -> t --> t' -> typed t' T.
+  intros t t' T t_typed t_process.
+  generalize dependent t'.
+  induction t_typed; intros t' t'_process; try solve_by_invert; try find_process; auto.
+  - (* T_If *)
+    inversion t'_process; try (rewrite <- H3; assumption).
+    specialize (IHt_typed1 t'0).
+    specialize (IHt_typed1 H3).
+    apply (T_If t'0 t1 t2 T IHt_typed1 t_typed2 t_typed3).
+  - (* T_Pred *)
+    inversion t'_process; try constructor.
+    + specialize (IHt_typed t'0). (* E_Pred *)
+      specialize (IHt_typed H0). auto.
+    +apply (numericval_nat t' H0). (* E_PredSucc *)
+Qed.
+
+Theorem preserve' : forall t t' T, typed t T -> t --> t' -> typed t' T.
+  Hint Resolve numericval_nat.
+  intros t t' T t_typed t_process.
+  generalize dependent T.
+  induction t_process; intros T t_typed; inversion t_typed; try constructor; auto.
 Qed.
